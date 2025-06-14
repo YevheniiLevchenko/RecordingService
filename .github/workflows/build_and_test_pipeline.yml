@@ -14,34 +14,13 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Select Xcode version
-        # Using Xcode 15.4 as a stable example. You can change this back to 16.1 if needed.
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
-
-      - name: Build library for testing
-        # We use -scheme instead of -project for SPM libraries.
-        # The scheme name typically matches your package name.
-        # 'clean' is omitted for speed as CI environments are already clean.
-        run: |
-          xcodebuild build \
-            -scheme RecordingService \
-            -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: Run library tests
-        # We again use -scheme to target the tests for your library.
-        # Adding -enableCodeCoverage is a CI best practice.
-        run: |
-          xcodebuild test \
-            -scheme RecordingService \
-            -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
-            -enableCodeCoverage YES \
-            CODE_SIGNING_ALLOWED=NO
+      - uses: actions/checkout@v4
+      
+      - name: Build
+        run: swift build -v
+        
+      - name: Run tests
+        run: swift test -v
 
       - name: Notify Telegram on Status
         # This step runs regardless of whether the build/test succeeded or failed.
