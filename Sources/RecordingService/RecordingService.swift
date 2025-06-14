@@ -380,6 +380,7 @@ extension RecordingService: AVCaptureFileOutputRecordingDelegate {
 }
 
 // MARK: - DispatchQueue Extension for synchronous throwing tasks
+@available(iOS 17.0, *)
 extension DispatchQueue {
     // Helper to perform throwing tasks synchronously on the queue
     // Useful for sessionQueue operations that need to throw back to an async context.
