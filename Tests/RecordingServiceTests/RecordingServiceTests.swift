@@ -117,7 +117,7 @@ final class MockAVCaptureMovieFileOutput: AVCaptureMovieFileOutput {
     }
 }
 
-extension RecordingService {
+extension Recorder {
     // Testing purposes only
     convenience init(mode: RecordingMode, delegate: RecordingServiceDelegate? = nil) {
         self.init(
@@ -133,7 +133,7 @@ extension RecordingService {
 // MARK: - Main Test Class
 final class RecordingServiceTests: XCTestCase {
 
-    var service: RecordingService!
+    var service: Recorder!
     var mockDelegate: MockRecordingServiceDelegate!
     var mockSession: MockAVCaptureSession!
     var mockFileOutput: MockAVCaptureMovieFileOutput!
@@ -144,7 +144,7 @@ final class RecordingServiceTests: XCTestCase {
         mockSession = MockAVCaptureSession()
         mockFileOutput = MockAVCaptureMovieFileOutput()
         
-        service = RecordingService(
+        service = Recorder(
             mode: .video,
             delegate: mockDelegate,
             session: mockSession,
@@ -164,14 +164,14 @@ final class RecordingServiceTests: XCTestCase {
     
     func testSetsCorrectVideoMode() {
         // Given
-        let videoService = RecordingService(mode: .video)
+        let videoService = Recorder(mode: .video)
         // Then
         XCTAssertEqual(videoService.currentMode, .video)
     }
 
     func testSetsCorrectAudioMode() {
         // Given
-        let audioService = RecordingService(mode: .audio)
+        let audioService = Recorder(mode: .audio)
         // Then
         XCTAssertEqual(audioService.currentMode, .audio)
     }

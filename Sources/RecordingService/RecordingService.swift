@@ -28,7 +28,7 @@ public protocol RecordingServiceProtocol: AnyObject {
     func teardownSession()
 }
 
-public final class RecordingService: NSObject, RecordingServiceProtocol, @unchecked Sendable {
+public final class Recorder: NSObject, RecordingServiceProtocol, @unchecked Sendable {
     
     public var isRecording: Bool = false
     public weak var delegate: RecordingServiceDelegate?
@@ -373,7 +373,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
 }
 
 // MARK: - AVCaptureFileOutputRecordingDelegate
-extension RecordingService: AVCaptureFileOutputRecordingDelegate {
+extension Recorder: AVCaptureFileOutputRecordingDelegate {
     public func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         // This callback is on an arbitrary queue. Dispatch to main for UI updates or state changes.
         delegate?.recordingDidStart(service: self)
