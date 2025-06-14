@@ -26,7 +26,6 @@ jobs:
           xcodebuild test \
             -scheme RecordingService \
             -sdk iphonesimulator \
-            # --- UPDATE THIS LINE ---
             -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.4' \
             -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO
