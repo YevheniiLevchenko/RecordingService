@@ -21,13 +21,13 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
       - name: Build and Run Tests on iOS Simulator
-        # The 'test' action automatically builds the project before running tests.
-        # This single step is all you need for both building and testing.
+        # This single step builds and tests the project.
         run: |
           xcodebuild test \
             -scheme RecordingService \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            # --- UPDATE THIS LINE ---
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.4' \
             -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO
 
