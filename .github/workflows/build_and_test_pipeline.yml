@@ -1,58 +1,63 @@
-name: Xcode - Build and Test
+# .github/workflows/ci.yml
+
+name: Build and Test
 
 on:
   push:
     branches: [ "main", "Task/*" ]
   pull_request:
-    branches: [ "main", ]
+    branches: [ "main" ]
 
 jobs:
-
-  build:
+  build_and_test: # Changed job name to be more descriptive
+    name: Build and Test on iOS Simulator
     runs-on: macos-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.1
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app
+      - name: Select Xcode version
+        # Using Xcode 15.4 as a stable example. You can change this back to 16.1 if needed.
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Install dependencies
+      - name: Build library for testing
+        # We use -scheme instead of -project for SPM libraries.
+        # The scheme name typically matches your package name.
+        # 'clean' is omitted for speed as CI environments are already clean.
         run: |
-          xcodebuild -resolvePackageDependencies -project CI_test.xcodeproj
-
-      - name: Build project
-        run: |
-          xcodebuild clean build \
-            -project CI_test.xcodeproj \
-            -scheme CI_test \
+          xcodebuild build \
+            -scheme RecordingService \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max' \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
             CODE_SIGNING_ALLOWED=NO
 
-      # --- RUN TESTS ---
-      - name: Run tests
+      - name: Run library tests
+        # We again use -scheme to target the tests for your library.
+        # Adding -enableCodeCoverage is a CI best practice.
         run: |
-          # This command executes the test action defined in your scheme.
-          # The job will fail if any of your tests fail.
           xcodebuild test \
-            -project CI_test.xcodeproj \
-            -scheme CI_test \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max' \
+            -scheme RecordingService \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Notify Telegram
-        if: always() # Important: This runs the step even if the build fails
+      - name: Notify Telegram on Status
+        # This step runs regardless of whether the build/test succeeded or failed.
+        if: always()
         run: |
-          STATUS="✅ Build succeeded"
-          if [ "${{ job.status }}" != "success" ]; then
-            STATUS="❌ Build failed"
+          if [ "${{ job.status }}" == "success" ]; then
+            STATUS="✅ Build Succeeded"
+          else
+            STATUS="❌ Build Failed"
           fi
           
-          MESSAGE="${STATUS}%0A📦 Repo: $GITHUB_REPOSITORY%0A🌿 Branch: $GITHUB_REF_NAME%0A🔗 [View build]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+          # Create a URL-encoded message for the Telegram API
+          MESSAGE="${STATUS}%0A%0A📦 *Repo:* ${{ github.repository }}%0A🌿 *Branch:* ${{ github.ref_name }}%0A%0A🔗 [View Build Log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
 
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
-            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d parse_mode=Markdown \
+          # Send the message using curl
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
             -d text="${MESSAGE}"
