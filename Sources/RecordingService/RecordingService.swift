@@ -18,7 +18,7 @@ public protocol RecordingServiceProtocol: AnyObject {
     var isRecording: Bool { get }
     var delegate: RecordingServiceDelegate? { get set }
     var currentMode: RecordingMode { get }
-
+    
     func setupSession() async throws
     func startCaptureSession(completion: @escaping @Sendable (Result<Void, Error>) -> Void)
     func stopCaptureSession()
@@ -29,7 +29,7 @@ public protocol RecordingServiceProtocol: AnyObject {
 }
 
 public final class RecordingService: NSObject, RecordingServiceProtocol, @unchecked Sendable {
-
+    
     public var isRecording: Bool = false
     public weak var delegate: RecordingServiceDelegate?
     public private(set) var currentMode: RecordingMode
@@ -41,7 +41,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
     private var activeRecordingURL: URL?
     /// Queue for all session-related operations
     private let sessionQueue = DispatchQueue(label: "recorder.service.session.queue", qos: .userInitiated)
-
+    
     /// Initialize with `session` and `fileOutput` for testing purposes only
     init(
         mode: RecordingMode,
@@ -55,27 +55,27 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
         self.movieFileOutput = fileOutput
         super.init()
     }
-
+    
     public func getCaptureSession() -> AVCaptureSession? {
         return captureSession
     }
-
+    
     public func setupSession() async throws {
         // Check and Request Permissions
         try await checkAndRequestPermissions()
-
+        
         // Configure AVAudioSession (application-wide audio settings)
         try configureAudioSession()
-
+        
         // Create and Configure AVCaptureSession on the dedicated queue
         try await sessionQueue.perform { [weak self] in
             guard let self else { throw RecordingError.unknown(reason: "Self became nil during setup.") }
-
+            
             captureSession = AVCaptureSession()
             // Start configuration
             captureSession.beginConfiguration()
-
-           
+            
+            
             switch currentMode {
             case .video:
                 // Apply session preset
@@ -95,7 +95,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
                 // Add input based on mode
                 try self.addAudioInput()
             }
-
+            
             // Add Output
             /// Using `AVCaptureMovieFileOutput` for both modes for simplicity.
             /// For audio-only, it will create a movie file (.mp4 or .mov) with only an audio track.
@@ -103,7 +103,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             if self.captureSession.canAddOutput(output) {
                 self.captureSession.addOutput(output)
                 self.movieFileOutput = output
-
+                
                 // Optional: Configure video stabilization for video mode
                 if self.currentMode == .video,
                    let connection = output.connection(with: .video),
@@ -113,13 +113,13 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             } else {
                 throw RecordingError.inputOutputError(reason: "Cannot add movie file output to the session.")
             }
-
+            
             // Commit configuration
             self.captureSession.commitConfiguration()
             self.addSessionObservers()
         }
     }
-
+    
     public func startCaptureSession(completion: @escaping @Sendable (Result<Void, Error>) -> Void) {
         sessionQueue.async { [weak self] in
             guard let self else { return }
@@ -137,14 +137,14 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             completion(.success(Void()))
         }
     }
-
+    
     public func stopCaptureSession() {
         sessionQueue.async { [weak self] in
             guard let session = self?.captureSession, session.isRunning else { return }
             session.stopRunning()
         }
     }
-
+    
     public func startRecording(fileName: String) throws {
         guard let captureSession, captureSession.isRunning else {
             throw RecordingError.sessionNotRunning
@@ -157,11 +157,11 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
         guard !movieFileOutput.isRecording else {
             throw RecordingError.recordingInProgress
         }
-
+        
         // Perform recording start on the session queue
         try sessionQueue.sync { [weak self] in
             guard let self else { throw RecordingError.unknown(reason: "Self became nil before starting recording.") }
-
+            
             let outputDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             let fileExtension = currentMode == .video ? "mp4" : "m4a" // .m4a is common for audio in mp4 container
             let uniqueFileName = "\(fileName)-\(Int(Date().timeIntervalSince1970)).\(fileExtension)"
@@ -185,7 +185,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             movieFileOutput.startRecording(to: outputURL, recordingDelegate: self)
         }
     }
-
+    
     public func stopRecording() {
         sessionQueue.async { [weak self] in
             guard let movieFileOutput = self?.movieFileOutput, movieFileOutput.isRecording else {
@@ -201,23 +201,23 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             guard let session = self?.captureSession else { return }
             
             self?.removeSessionObservers()
-
+            
             if session.isRunning {
                 session.stopRunning()
             }
-
+            
             session.beginConfiguration()
             session.inputs.forEach { session.removeInput($0) }
             session.outputs.forEach { session.removeOutput($0) }
             session.commitConfiguration()
-
+            
             self?.videoDeviceInput = nil
             self?.audioDeviceInput = nil
             self?.movieFileOutput = nil
             self?.captureSession = nil
         }
     }
-
+    
     // MARK: - Permissions
     private func checkAndRequestPermissions() async throws {
         // Audio Permission
@@ -231,7 +231,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
         default: // .denied, .restricted
             throw RecordingError.permissionDenied(mediaType: .audio)
         }
-
+        
         // Video Permission (only if in video mode)
         if currentMode == .video {
             switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -246,7 +246,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             }
         }
     }
-
+    
     // MARK: - AVAudioSession Configuration
     private func configureAudioSession() throws {
         let audioSession = AVAudioSession.sharedInstance()
@@ -257,7 +257,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             throw RecordingError.setupFailed(reason: "Failed to configure AVAudioSession: \(error.localizedDescription)")
         }
     }
-
+    
     // MARK: - Input/Output Setup
     /// Must be called on sessionQueue
     private func addAudioInput() throws {
@@ -281,7 +281,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             throw RecordingError.inputOutputError(reason: "Failed to create audio input: \(error.localizedDescription)")
         }
     }
-
+    
     private func addVideoInput(position: AVCaptureDevice.Position = .back) throws { // Default to back camera
         guard let session = captureSession else {
             throw RecordingError.setupFailed(reason: "Capture session not initialized for video input.")
@@ -319,17 +319,31 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
     // MARK: - Session Observers
     private func addSessionObservers() {
         guard let session = captureSession else { return }
-        NotificationCenter.default.addObserver(self, selector: #selector(sessionRuntimeError), name: AVCaptureSession.runtimeErrorNotification, object: session)
-        NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterrupted), name: AVCaptureSession.wasInterruptedNotification, object: session)
-        NotificationCenter.default.addObserver(self, selector: #selector(sessionInterruptionEnded), name: AVCaptureSession.interruptionEndedNotification, object: session)
+        if #available(iOS 17.0, *) {
+            // Use the modern API names on iOS 17+
+            NotificationCenter.default.addObserver(self, selector: #selector(sessionRuntimeError), name: AVCaptureSession.runtimeErrorNotification, object: session)
+            NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterrupted), name: AVCaptureSession.wasInterruptedNotification, object: session)
+            NotificationCenter.default.addObserver(self, selector: #selector(sessionInterruptionEnded), name: AVCaptureSession.interruptionEndedNotification, object: session)
+        } else {
+            // Use the older, raw-value based names on older iOS versions
+            NotificationCenter.default.addObserver(self, selector: #selector(sessionRuntimeError), name: NSNotification.Name("AVCaptureSessionRuntimeErrorNotification"), object: session)
+            NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterrupted), name: NSNotification.Name("AVCaptureSessionWasInterruptedNotification"), object: session)
+            NotificationCenter.default.addObserver(self, selector: #selector(sessionInterruptionEnded), name: NSNotification.Name("AVCaptureSessionInterruptionEndedNotification"), object: session)
+        }
     }
-
+    
     private func removeSessionObservers() {
-        NotificationCenter.default.removeObserver(self, name: AVCaptureSession.runtimeErrorNotification, object: captureSession)
-        NotificationCenter.default.removeObserver(self, name: AVCaptureSession.wasInterruptedNotification, object: captureSession)
-        NotificationCenter.default.removeObserver(self, name: AVCaptureSession.interruptionEndedNotification, object: captureSession)
+        if #available(iOS 17.0, *) {
+            NotificationCenter.default.removeObserver(self, name: AVCaptureSession.runtimeErrorNotification, object: captureSession)
+            NotificationCenter.default.removeObserver(self, name: AVCaptureSession.wasInterruptedNotification, object: captureSession)
+            NotificationCenter.default.removeObserver(self, name: AVCaptureSession.interruptionEndedNotification, object: captureSession)
+        } else {
+            NotificationCenter.default.removeObserver(self, name: NSNotification.Name("AVCaptureSessionRuntimeErrorNotification"), object: captureSession)
+            NotificationCenter.default.removeObserver(self, name: NSNotification.Name("AVCaptureSessionWasInterruptedNotification"), object: captureSession)
+            NotificationCenter.default.removeObserver(self, name: NSNotification.Name("AVCaptureSessionInterruptionEndedNotification"), object: captureSession)
+        }
     }
-
+    
     @objc private func sessionRuntimeError(notification: NSNotification) {
         guard let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError else { return }
         let recordingError = RecordingError.recordingFailed(underlyingError: error)
@@ -341,7 +355,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             delegate?.recordingServiceFailed(service: self, error: recordingError)
         }
     }
-
+    
     @objc private func sessionWasInterrupted(notification: NSNotification) {
         guard
             let reasonValue = notification.userInfo?[AVCaptureSessionInterruptionReasonKey] as? NSNumber,
@@ -351,7 +365,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
         }
         delegate?.recordingSessionInterrupted(service: self, reason: reason)
     }
-
+    
     @objc private func sessionInterruptionEnded(notification: NSNotification) {
         delegate?.recordingSessionInterruptionEnded(service: self)
         // Client might need to decide whether to re-start recording or session.
@@ -364,11 +378,11 @@ extension RecordingService: AVCaptureFileOutputRecordingDelegate {
         // This callback is on an arbitrary queue. Dispatch to main for UI updates or state changes.
         delegate?.recordingDidStart(service: self)
     }
-
+    
     public func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         let finalURL = activeRecordingURL ?? outputFileURL // Prefer the URL we initiated with
         activeRecordingURL = nil // Clear active URL
-
+        
         let recordingError: RecordingError? = if let error {
             .recordingFailed(underlyingError: error)
         } else {
