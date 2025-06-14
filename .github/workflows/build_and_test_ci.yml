@@ -1,0 +1,47 @@
+# .github/workflows/ci.yml
+
+name: Build and Test iOS
+
+on:
+  push:
+    branches: [ "main", "Task/*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test_ios:
+    name: Build and Test on iOS Simulator
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Build and Run Tests on iOS Simulator
+        # The 'test' action automatically builds the project before running tests.
+        # This single step is all you need for both building and testing.
+        run: |
+          xcodebuild test \
+            -scheme RecordingService \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            -enableCodeCoverage YES \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Notify Telegram
+        if: always() # Important: This runs the step even if the build fails
+        run: |
+          STATUS="✅ Build succeeded"
+          if [ "${{ job.status }}" != "success" ]; then
+            STATUS="❌ Build failed"
+          fi
+          
+          MESSAGE="${STATUS}%0A📦 Repo: $GITHUB_REPOSITORY%0A🌿 Branch: $GITHUB_REF_NAME%0A🔗 [View build]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d parse_mode=Markdown \
+            -d text="${MESSAGE}"
