@@ -43,7 +43,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
     private let sessionQueue = DispatchQueue(label: "recorder.service.session.queue", qos: .userInitiated)
     
     /// Initialize with `session` and `fileOutput` for testing purposes only
-    init(
+    public init(
         mode: RecordingMode,
         delegate: RecordingServiceDelegate? = nil,
         session: AVCaptureSession? = nil,
