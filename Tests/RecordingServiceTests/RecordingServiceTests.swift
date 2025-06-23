@@ -17,8 +17,6 @@ final class MockRecordingServiceDelegate: RecordingServiceDelegate {
     var recordingDidStartExpectation: XCTestExpectation?
     var recordingDidStopExpectation: XCTestExpectation?
     var recordingServiceFailedExpectation: XCTestExpectation?
-    var sessionInterruptedExpectation: XCTestExpectation?
-    var sessionInterruptionEndedExpectation: XCTestExpectation?
 
     // Properties to store the results of delegate calls
     private(set) var didStartCallCount = 0
@@ -40,16 +38,6 @@ final class MockRecordingServiceDelegate: RecordingServiceDelegate {
     func recordingServiceFailed(service: RecordingServiceProtocol, error: RecordingError) {
         didFailError = error
         recordingServiceFailedExpectation?.fulfill()
-    }
-
-    func recordingSessionInterrupted(service: RecordingServiceProtocol, reason: AVCaptureSession.InterruptionReason?) {
-        self.interruptionReason = reason
-        sessionInterruptedExpectation?.fulfill()
-    }
-
-    func recordingSessionInterruptionEnded(service: RecordingServiceProtocol) {
-        interruptionEndedCallCount += 1
-        sessionInterruptionEndedExpectation?.fulfill()
     }
 }
 
@@ -117,19 +105,6 @@ final class MockAVCaptureMovieFileOutput: AVCaptureMovieFileOutput {
     }
 }
 
-extension RecordingService {
-    // Testing purposes only
-    convenience init(mode: RecordingMode, delegate: RecordingServiceDelegate? = nil) {
-        self.init(
-            mode: mode,
-            delegate: delegate,
-            session: AVCaptureSession(),
-            fileOutput: AVCaptureMovieFileOutput()
-        )
-    }
-}
-
-
 // MARK: - Main Test Class
 final class RecordingServiceTests: XCTestCase {
 
@@ -179,10 +154,9 @@ final class RecordingServiceTests: XCTestCase {
     // MARK: - State and Error Handling Tests
 
     func testStartRecordingWhenSessionNotRunning() {
-        // Given
-        mockSession._isRunning = false
-        // Then
+        // When
         XCTAssertThrowsError(try service.startRecording(fileName: "test")) { error in
+            // Then
             XCTAssertEqual(error as? RecordingError, .sessionNotRunning)
         }
     }
@@ -190,7 +164,7 @@ final class RecordingServiceTests: XCTestCase {
     func testStartRecordingWhenAlreadyRecording() {
         // GIVEN
         mockSession._isRunning = true
-
+        
         // WHEN
         XCTAssertNoThrow(try service.startRecording(fileName: "first_test_recording"), "The first call to startRecording should not throw an error.")
         XCTAssertTrue(mockFileOutput.isRecording, "Precondition failed: The mock file output should be in a recording state.")

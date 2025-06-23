@@ -10,8 +10,6 @@ public protocol RecordingServiceDelegate: AnyObject {
     func recordingDidStart(service: RecordingServiceProtocol)
     func recordingDidStop(service: RecordingServiceProtocol, url: URL?, error: RecordingError?)
     func recordingServiceFailed(service: RecordingServiceProtocol, error: RecordingError)
-    func recordingSessionInterrupted(service: RecordingServiceProtocol, reason: AVCaptureSession.InterruptionReason?)
-    func recordingSessionInterruptionEnded(service: RecordingServiceProtocol)
 }
 
 public protocol RecordingServiceProtocol: AnyObject {
@@ -98,7 +96,7 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             
             // Add Output
             /// Using `AVCaptureMovieFileOutput` for both modes for simplicity.
-            /// For audio-only, it will create a movie file (.mp4 or .mov) with only an audio track.
+            /// For audio-only, it will create a movie file with only an audio track.
             let output = AVCaptureMovieFileOutput()
             if self.captureSession.canAddOutput(output) {
                 self.captureSession.addOutput(output)
@@ -287,7 +285,6 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
             throw RecordingError.setupFailed(reason: "Capture session not initialized for video input.")
         }
         
-        // More robust device discovery (e.g., .builtInWideAngleCamera)
         let discoverySession = AVCaptureDevice.DiscoverySession(
             deviceTypes: [.builtInWideAngleCamera, .builtInTelephotoCamera, .builtInUltraWideCamera],
             mediaType: .video,
@@ -322,25 +319,17 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
         if #available(iOS 17.0, *) {
             // Use the modern API names on iOS 17+
             NotificationCenter.default.addObserver(self, selector: #selector(sessionRuntimeError), name: AVCaptureSession.runtimeErrorNotification, object: session)
-            NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterrupted), name: AVCaptureSession.wasInterruptedNotification, object: session)
-            NotificationCenter.default.addObserver(self, selector: #selector(sessionInterruptionEnded), name: AVCaptureSession.interruptionEndedNotification, object: session)
         } else {
             // Use the older, raw-value based names on older iOS versions
             NotificationCenter.default.addObserver(self, selector: #selector(sessionRuntimeError), name: NSNotification.Name("AVCaptureSessionRuntimeErrorNotification"), object: session)
-            NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterrupted), name: NSNotification.Name("AVCaptureSessionWasInterruptedNotification"), object: session)
-            NotificationCenter.default.addObserver(self, selector: #selector(sessionInterruptionEnded), name: NSNotification.Name("AVCaptureSessionInterruptionEndedNotification"), object: session)
         }
     }
     
     private func removeSessionObservers() {
         if #available(iOS 17.0, *) {
             NotificationCenter.default.removeObserver(self, name: AVCaptureSession.runtimeErrorNotification, object: captureSession)
-            NotificationCenter.default.removeObserver(self, name: AVCaptureSession.wasInterruptedNotification, object: captureSession)
-            NotificationCenter.default.removeObserver(self, name: AVCaptureSession.interruptionEndedNotification, object: captureSession)
         } else {
             NotificationCenter.default.removeObserver(self, name: NSNotification.Name("AVCaptureSessionRuntimeErrorNotification"), object: captureSession)
-            NotificationCenter.default.removeObserver(self, name: NSNotification.Name("AVCaptureSessionWasInterruptedNotification"), object: captureSession)
-            NotificationCenter.default.removeObserver(self, name: NSNotification.Name("AVCaptureSessionInterruptionEndedNotification"), object: captureSession)
         }
     }
     
@@ -354,21 +343,6 @@ public final class RecordingService: NSObject, RecordingServiceProtocol, @unchec
         } else {
             delegate?.recordingServiceFailed(service: self, error: recordingError)
         }
-    }
-    
-    @objc private func sessionWasInterrupted(notification: NSNotification) {
-        guard
-            let reasonValue = notification.userInfo?[AVCaptureSessionInterruptionReasonKey] as? NSNumber,
-            let reason = AVCaptureSession.InterruptionReason(rawValue: reasonValue.intValue)
-        else {
-            return
-        }
-        delegate?.recordingSessionInterrupted(service: self, reason: reason)
-    }
-    
-    @objc private func sessionInterruptionEnded(notification: NSNotification) {
-        delegate?.recordingSessionInterruptionEnded(service: self)
-        // Client might need to decide whether to re-start recording or session.
     }
 }
 
