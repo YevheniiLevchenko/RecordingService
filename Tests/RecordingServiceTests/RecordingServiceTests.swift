@@ -22,8 +22,6 @@ final class MockRecordingServiceDelegate: RecordingServiceDelegate {
     private(set) var didStartCallCount = 0
     private(set) var didStopInfo: (url: URL?, error: RecordingError?)?
     private(set) var didFailError: RecordingError?
-    private(set) var interruptionReason: AVCaptureSession.InterruptionReason?
-    private(set) var interruptionEndedCallCount = 0
 
     func recordingDidStart(service: RecordingServiceProtocol) {
         didStartCallCount += 1
@@ -42,7 +40,7 @@ final class MockRecordingServiceDelegate: RecordingServiceDelegate {
 }
 
 // MARK: - Mock AVFoundation Classes
-/// Create mock subclasses of AVFoundation objects to control their behavior during tests.
+/// Mock subclasses of AVFoundation objects to control their behavior during tests.
 final class MockAVCaptureSession: AVCaptureSession {
     var _isRunning = false
     override var isRunning: Bool { return _isRunning }
